@@ -2,11 +2,13 @@ from ultralytics import YOLO
 import numpy as np
 from typing import List, Dict
 from loguru import logger
+from ocr_reader import LicensePlateOCR
 
 class My_LicensePlate_Model:
     def __init__(self, model_path: str = "runs/detect/runs/train/license_plate/weights/best.pt"):
         self.model = YOLO(model_path)
         self.confidence_threshold = 0.25
+        self.ocr = LicensePlateOCR(languages=['en', 'ru'])
         logger.info(f"Model loaded from {model_path}")
     
     def detect_plates(self, frame: np.ndarray) -> List[Dict]:
@@ -16,9 +18,11 @@ class My_LicensePlate_Model:
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
             confidence = float(box.conf[0])
             if confidence >= self.confidence_threshold:
+                text = self.ocr.read_plate(frame, [x1, y1, x2, y2])
                 plates.append({
                     "bbox": [x1, y1, x2, y2],
-                    "confidence": confidence
+                    "confidence": confidence,
+                    "text": text
                 })
         logger.debug(f"Found {len(plates)} plates")
         return plates
@@ -28,7 +32,9 @@ class My_LicensePlate_Model:
         for plate in plates:
             x1, y1, x2, y2 = plate["bbox"]
             conf = plate["confidence"]
+            text = plate.get("text", "")
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(frame, f"{conf:.2f}", (x1, y1-10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv2.putText(frame, f"{conf:.2f}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            if text:
+                self.ocr.draw_text(frame, [x1, y1, x2, y2], text)
         return frame
