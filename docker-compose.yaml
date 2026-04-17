@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  license-plate-detector:
+    build: .
+    volumes:
+      - ./videos:/app/videos
+      - ./data:/app/data
+      - ./output:/app/output
+    command: video --video /app/videos/test.mp4 --output /app/output/result.mp4
